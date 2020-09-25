@@ -21,6 +21,7 @@ SOLUTION, FINISH = range(2)
 def _time_left(current_time, end_time):
     ...
 
+
 def admin_check(func):
     @wraps(func)
     def wrapped(update, context):
