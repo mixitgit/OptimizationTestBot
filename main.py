@@ -1,4 +1,4 @@
-import logging
+import logging, datetime
 from functools import wraps
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHandler, Filters
@@ -16,6 +16,10 @@ admins = list(map(int, config.ADMINS.split()))
 
 TEST, CAPTION, TIMER, START = range(4)
 SOLUTION, FINISH = range(2)
+
+
+def _time_left(current_time, end_time):
+    ...
 
 def admin_check(func):
     @wraps(func)
@@ -45,23 +49,57 @@ def upload_test(update, context):
 
 
 def create_caption(update, context):
-    context.bot_data['test_caption'] = update.message.text
-    update.message.reply_text('Nice, now set the timer',
+    context.bot_data['test_caption'] = None
+    if update.message.text != 'Skip':
+        context.bot_data['test_caption'] = update.message.text
+    update.message.reply_text('Nice, now set test duration in minutes',
                               reply_markup=ReplyKeyboardRemove())
     return TIMER
 
 
+# todo add timer
 def set_timer(update, context):
+    due = int(update.message.text)
+    context.bot_data['test_due'] = due
+    if due < 0:
+        update.message.reply_text('Sorry we can not go back to future!')
+        return
     reply_keyboard = [['Start']]
-
     update.message.reply_text('Test creation finished, press the Start button when ready',
                               reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
-    logger.info(f'user {update.effective_user["id"]} trying to create test')
     return START
 
 
+def alarm(context):
+    context.bot_data['active_test'] = False
+    context.bot_data['test_end'] = None
+    for chat in context.bot_data['registered_chats']:
+        context.bot.send_message(chat_id=chat, text=f"Test ended, you can't send solutions. See you next week!")
+    context.bot.send_message(chat_id=context.bot_data['teacher_chat_id'], text=f'Test ended')
+    return ConversationHandler.END
+
+
 def start_test(update, context):
-    ...
+    # remove old timer job
+    if 'timer' in context.bot_data:
+        old_job = context.bot_data['timer']
+        old_job.schedule_removal()
+    # set test end time
+    test_due = context.bot_data['test_due']
+    context.bot_data['test_end'] = datetime.datetime.now() + datetime.timedelta(minutes=test_due)
+    logger.info(f'{datetime.datetime.now()}')
+    new_job = context.job_queue.run_once(alarm, test_due*60, context=context)
+    context.bot_data['timer'] = new_job
+
+    # make test active
+    context.bot_data['active_test'] = True
+
+    # send test to all registered chats
+    for chat in context.bot_data['registered_chats']:
+        context.bot.send_message(chat_id=chat, text=f'New test started, end at {context.bot_data["test_end"]}')
+        context.bot.send_photo(chat_id=chat, photo=context.bot_data['test_img'],
+                               caption=context.bot_data['test_caption'])
+    update.message.reply_text(f'Test have started, ends at {context.bot_data["test_end"]}')
     return ConversationHandler.END
 
 
@@ -75,9 +113,19 @@ def cancel(update, context):
 
 
 def start(update, context):
-    update.message.reply_text('You are starting to solve the test')
-    update.message.reply_photo(photo=context.bot_data['test_img'], caption=context.bot_data['test_caption'])
-    return SOLUTION
+    # register chat for updates
+    context.bot_data['registered_chats'].append(update.effective_chat['id'])
+    logger.info(f'Chat {update.message.chat["id"]} '
+                f'with user {update.effective_user["first_name"]} {update.effective_user["last_name"]} '
+                f'registered for test')
+
+    if context.bot_data['active_test']:
+        update.message.reply_text('You are starting to solve the test')
+        update.message.reply_photo(photo=context.bot_data['test_img'], caption=context.bot_data['test_caption'])
+        return SOLUTION
+    else:
+        update.message.reply_text('No active test, I will notify you when it will be created')
+        return ConversationHandler.END
 
 
 def send_solution(update, context):
@@ -98,15 +146,18 @@ def finish_test(update, context):
 
 def main():
     updater = Updater(config.TOKEN, use_context=True)
+    # init
     dp = updater.dispatcher
-
+    dp.bot_data['registered_chats'] = []
+    dp.bot_data['active_test'] = False
+    dp.bot_data['test_end'] = None
     # teacher side
     test_creation_handler = ConversationHandler(
         entry_points=[CommandHandler('create_test', create_test)],
         states={
             TEST: [MessageHandler(Filters.photo, upload_test)],
             CAPTION: [MessageHandler(Filters.text & ~Filters.command, create_caption)],
-            TIMER: [MessageHandler(Filters.text & ~Filters.command, set_timer)],
+            TIMER: [MessageHandler(Filters.regex('^[1-9]?[0-9]+$'), set_timer)],
             START: [MessageHandler(Filters.regex('^(Start)$'), start_test)]
         },
         fallbacks=[CommandHandler('cancel', cancel)]
