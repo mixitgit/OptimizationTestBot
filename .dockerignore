@@ -1,4 +1,6 @@
 .git
 .ipynb
+.idea
+__pycache___
 venv
 
