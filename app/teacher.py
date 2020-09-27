@@ -84,7 +84,6 @@ def start_test(update, context):
 
 def alarm(context):
     context.bot_data['active_test'] = False
-    context.bot_data['test_end'] = None
     for chat in context.bot_data['registered_chats']:
         buttons = [[InlineKeyboardButton('Finish', callback_data='finish_test')]]
         context.bot.send_message(chat_id=chat, text=f"Test ended, now you can't send solutions. "
@@ -98,7 +97,8 @@ def alarm(context):
             solution = solutions[chat]
             if solution.get('photos'):
                 context.bot.send_message(chat_id=context.bot_data['teacher_chat_id'],
-                                         text=f'user {effective_user_name(solution["user"])} signed as {solution["signature"]} sent this:')
+                                         text=f'user {solution["user"]["first_name"]} {solution["user"]["last_name"]} '
+                                              f'signed as {solution["signature"]} sent this:')
                 photos = []
                 for photo in solution['photos']:
                     photos.append(InputMediaPhoto(media=photo))
@@ -107,3 +107,6 @@ def alarm(context):
     else:
         context.bot.send_message(chat_id=context.bot_data['teacher_chat_id'],
                                  text=f'Test ended, no solutions received')
+    context.bot_data['registered_chats'] = set()
+    context.bot_data['test_end'] = None
+    context.bot_data['solutions'] = {}

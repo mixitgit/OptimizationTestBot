@@ -64,7 +64,7 @@ def finish(update, context):
 
 
 def time(update, context):
-    rem_time = context.bot_data['time_end'] - datetime.datetime.now()
+    rem_time = context.bot_data['test_end'] - datetime.datetime.now()
     logger.info(f'user asked for remaining time {rem_time}')
     update.message.reply_text(f'Remaining time: {rem_time}')
 
