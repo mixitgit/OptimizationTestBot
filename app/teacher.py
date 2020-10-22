@@ -78,8 +78,7 @@ def start_test(update, context):
     duration_list = [3*60, 1*60, 30]
     for duration in duration_list:
         if test_due * 60 - duration > 0:
-            job_context = [context, duration]
-            new_job = context.job_queue.run_once(notify, test_due * 60 - duration, context=job_context)
+            new_job = context.job_queue.run_once(notify, test_due * 60 - duration, context=duration)
             context.bot_data['notifications'][duration] = new_job
 
     # make test active
@@ -129,12 +128,11 @@ def alarm(context):
     context.bot_data['solutions'] = {}
 
 
-def notify(job_context):
-    context = job_context[0]
-    duration = job_context[1]
+def notify(context):
+    duration = context.job.context
     # notify students
     for chat in context.bot_data['registered_chats']:
-        context.bot.send_message(chat_id=chat, text=f"{duration//60} m {duration%60} s left")
+        context.bot.send_message(chat_id=chat, text=f"{duration//60}m {duration%60}s left")
     # notify teacher
     context.bot.send_message(chat_id=context.bot_data['teacher_chat_id'],
-                             text=f"{duration // 60} m {duration % 60} s left")
+                             text=f"{duration // 60}m {duration % 60}s left")

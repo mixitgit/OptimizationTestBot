@@ -1,6 +1,7 @@
 import logging, datetime
 from functools import wraps
-from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton
+from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, \
+    InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHandler, Filters
 
 from .utils import effective_user_name, build_menu
@@ -27,6 +28,9 @@ def start_solving(update, context):
         query.message.reply_text('You are starting to solve the test, sign your work first,'
                                  'send me your name and surname like this "Антон Антонов"')
         query.message.reply_photo(photo=context.bot_data['test_img'], caption=context.bot_data['test_caption'])
+        buttons = [[InlineKeyboardButton("Time", callback_data='time_button')]]
+        query.message.reply_text(text=f'Check how much time left',
+                                 reply_markup=InlineKeyboardMarkup(buttons))
         return SIGNATURE
     else:
         query.message.reply_text('No active test, I will notify you when it will be created')

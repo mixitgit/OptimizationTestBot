@@ -16,15 +16,24 @@ logger = logging.getLogger("CHATBOT")
 
 
 def start(update, context):
-    if update.effective_user['id'] in admins:
+    if config.DEV:
         buttons = [[InlineKeyboardButton("Create test", callback_data='teacher_button')]]
         update.message.reply_text('Do you want to create new test?',
                                   reply_markup=InlineKeyboardMarkup(buttons))
-    else:
         buttons = [[InlineKeyboardButton("Prepare for test", callback_data='student_button')]]
         update.message.reply_text('Do you want to start solving test? '
                                   'If no active test found, you will be registered for the new test',
                                   reply_markup=InlineKeyboardMarkup(buttons))
+    else:
+        if update.effective_user['id'] in admins:
+            buttons = [[InlineKeyboardButton("Create test", callback_data='teacher_button')]]
+            update.message.reply_text('Do you want to create new test?',
+                                      reply_markup=InlineKeyboardMarkup(buttons))
+        else:
+            buttons = [[InlineKeyboardButton("Prepare for test", callback_data='student_button')]]
+            update.message.reply_text('Do you want to start solving test? '
+                                      'If no active test found, you will be registered for the new test',
+                                      reply_markup=InlineKeyboardMarkup(buttons))
 
 
 def cancel(update, context):
@@ -45,8 +54,9 @@ def time(update, context):
     if context.bot_data['test_end']:
         rem_time = context.bot_data['test_end'] - datetime.datetime.now()
         logger.info(f'user asked for remaining time {rem_time}')
-        buttons = [[InlineKeyboardButton("Time", callback_data='time_button')]]
-        query.edit_message_text(text=f'Remaining time: {rem_time}', reply_markup=buttons)
+        button = InlineKeyboardButton("Time", callback_data='time_button')
+        keyboard = InlineKeyboardMarkup.from_button(button)
+        query.edit_message_text(text=f'Remaining time: {str(rem_time).split(".")[0]}', reply_markup=keyboard)
     else:
         query.edit_message_text(text=f'No active test')
 
@@ -81,15 +91,13 @@ def main():
         states={
             student.SIGNATURE: [MessageHandler(Filters.text & ~Filters.command, student.sign_solutions)],
             student.SOLUTION: [MessageHandler(Filters.photo, student.send_solution),
-                               MessageHandler(Filters.regex('^(time)$'), student.time),
-                               CommandHandler('time', student.time),
                                MessageHandler(Filters.regex('^(Finish)$'), student.finish),
                                CallbackQueryHandler(student.finish, pattern='^finish_test$')]
         },
         fallbacks=[CommandHandler('cancel', cancel)]
     )
     dp.add_handler(test_solution_handler)
-    dp.add_handler(CallbackQueryHandler(student.time, pattern='^time_button$'))
+    dp.add_handler(CallbackQueryHandler(time, pattern='^time_button$'))
 
     updater.start_polling()
 

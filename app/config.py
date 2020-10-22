@@ -6,6 +6,7 @@ from pydantic import BaseSettings
 class Config(BaseSettings):
     TOKEN: str
     ADMINS: str
+    DEV: int
 
 
 config = Config()
