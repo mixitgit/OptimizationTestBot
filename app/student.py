@@ -1,6 +1,6 @@
 import logging, datetime
 from functools import wraps
-from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton
 from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHandler, Filters
 
 from .utils import effective_user_name, build_menu
@@ -64,8 +64,11 @@ def finish(update, context):
 
 
 def time(update, context):
+    query = update.callback_query
+    query.answer()
     rem_time = context.bot_data['test_end'] - datetime.datetime.now()
     logger.info(f'user asked for remaining time {rem_time}')
-    update.message.reply_text(f'Remaining time: {rem_time}')
+    buttons = [[InlineKeyboardButton("Time", callback_data='time_button')]]
+    query.edit_message_text(text=f'Remaining time: {rem_time}', reply_markup=buttons)
 
     return SOLUTION

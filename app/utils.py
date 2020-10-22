@@ -36,3 +36,4 @@ def test_end_time(context):
     if end_time:
         end_time += datetime.timedelta(hours=3)
         return end_time.strftime('%H:%M')
+

@@ -10,7 +10,7 @@ RUN pip install -r requirements.txt
 
 ENV TOKEN='1354987324:AAEEqmaZ1MQFe17UAxmpijtv6ujqzl8DyPw'
 # my id 274486566
-ENV ADMINS='1 274486566'
+ENV ADMINS='164960798'
 # add app
 COPY . .
 

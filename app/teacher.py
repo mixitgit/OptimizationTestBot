@@ -61,21 +61,35 @@ def start_test(update, context):
     if 'timer' in context.bot_data:
         old_job = context.bot_data['timer']
         old_job.schedule_removal()
+
+    if 'notifications' in context.bot_data:
+        for notification in context.bot_data['notifications']:
+            old_job = notification
+            old_job.schedule_removal()
     # set test end time
     test_due = context.bot_data['test_due']
     context.bot_data['test_end'] = datetime.datetime.now() + datetime.timedelta(minutes=test_due)
     logger.info(f'test ends at {test_end_time(context)}')
+    # create final alarm
     new_job = context.job_queue.run_once(alarm, test_due * 60, context=context)
     context.bot_data['timer'] = new_job
+    # create notifications
+    context.bot_data['notifications'] = {}
+    duration_list = [3*60, 1*60, 30]
+    for duration in duration_list:
+        if test_due * 60 - duration > 0:
+            job_context = [context, duration]
+            new_job = context.job_queue.run_once(notify, test_due * 60 - duration, context=job_context)
+            context.bot_data['notifications'][duration] = new_job
 
     # make test active
     context.bot_data['active_test'] = True
-
     # send test to all registered chats
     for chat in context.bot_data['registered_chats']:
-        buttons = [[KeyboardButton('time')]]
-        context.bot.send_message(chat_id=chat, text=f'New test started, end at {test_end_time(context)}',
-                                 reply_markup=ReplyKeyboardMarkup(buttons, resize_keyboard=True))
+        context.bot.send_message(chat_id=chat, text=f'New test started, end at {test_end_time(context)}')
+        buttons = [[InlineKeyboardButton("Time", callback_data='time_button')]]
+        context.bot.send_message(chat_id=chat, text=f'Check how much time left',
+                                 reply_markup=InlineKeyboardMarkup(buttons))
         context.bot.send_photo(chat_id=chat, photo=context.bot_data['test_img'],
                                caption=context.bot_data['test_caption'])
     query.edit_message_text(f'Test have started, ends at {test_end_time(context)}')
@@ -110,3 +124,10 @@ def alarm(context):
     context.bot_data['registered_chats'] = set()
     context.bot_data['test_end'] = None
     context.bot_data['solutions'] = {}
+
+
+def notify(job_context):
+    context = job_context[0]
+    duration = job_context[1]
+    for chat in context.bot_data['registered_chats']:
+        context.bot.send_message(chat_id=chat, text=f"{duration//60} m {duration%60} s left")

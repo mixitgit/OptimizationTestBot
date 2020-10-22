@@ -6,7 +6,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHa
 
 from app.config import config
 from app import teacher, student
-from app.utils import admins, build_menu
+from app.utils import admins, build_menu, effective_user_name
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -29,7 +29,10 @@ def start(update, context):
 
 def cancel(update, context):
     user = update.message.from_user
-    logger.info(f"User {user.first_name} canceled conversation")
+    logger.info(f"User {effective_user_name(update)} canceled conversation")
+    if update.effective_chat['id'] in context.bot_data['registered_chats']:
+        context.bot_data['registered_chat'].remove(update.effective_chat['id'])
+        logger.info(f"Chat with user {effective_user_name(update)} removed from registered chats")
     update.message.reply_text('Bye! I hope we can talk again some day.',
                               reply_markup=ReplyKeyboardRemove())
 
@@ -47,9 +50,7 @@ def main():
     dp.add_handler(CommandHandler('start', start))
     # teacher side
     test_creation_handler = ConversationHandler(
-        entry_points=[CommandHandler('create_test', teacher.create_test),
-                      MessageHandler(Filters.regex('^(Create test)$'), teacher.create_test),
-                      CallbackQueryHandler(teacher.create_test, pattern='^teacher_button')],
+        entry_points=[CallbackQueryHandler(teacher.create_test, pattern='^teacher_button')],
         states={
             teacher.TEST: [MessageHandler(Filters.photo, teacher.upload_test)],
             teacher.CAPTION: [MessageHandler(Filters.text & ~Filters.command, teacher.create_caption)],
@@ -71,8 +72,8 @@ def main():
                                MessageHandler(Filters.regex('^(time)$'), student.time),
                                CommandHandler('time', student.time),
                                MessageHandler(Filters.regex('^(Finish)$'), student.finish),
-                               CallbackQueryHandler(student.finish, pattern='^finish_test$')],
-
+                               CallbackQueryHandler(student.finish, pattern='^finish_test$'),
+                               CallbackQueryHandler(student.time, pattern='^time_button$')],
         },
         fallbacks=[CommandHandler('cancel', cancel)]
     )
