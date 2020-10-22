@@ -93,6 +93,9 @@ def start_test(update, context):
         context.bot.send_photo(chat_id=chat, photo=context.bot_data['test_img'],
                                caption=context.bot_data['test_caption'])
     query.edit_message_text(f'Test have started, ends at {test_end_time(context)}')
+    buttons = [[InlineKeyboardButton("Time", callback_data='time_button')]]
+    context.bot.send_message(chat_id=context.bot_data['teacher_chat_id'], text=f'Check how much time left',
+                             reply_markup=InlineKeyboardMarkup(buttons))
     return ConversationHandler.END
 
 
@@ -129,5 +132,9 @@ def alarm(context):
 def notify(job_context):
     context = job_context[0]
     duration = job_context[1]
+    # notify students
     for chat in context.bot_data['registered_chats']:
         context.bot.send_message(chat_id=chat, text=f"{duration//60} m {duration%60} s left")
+    # notify teacher
+    context.bot.send_message(chat_id=context.bot_data['teacher_chat_id'],
+                             text=f"{duration // 60} m {duration % 60} s left")

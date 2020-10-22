@@ -63,6 +63,7 @@ def finish(update, context):
     return ConversationHandler.END
 
 
+"""
 def time(update, context):
     query = update.callback_query
     query.answer()
@@ -72,3 +73,4 @@ def time(update, context):
     query.edit_message_text(text=f'Remaining time: {rem_time}', reply_markup=buttons)
 
     return SOLUTION
+"""

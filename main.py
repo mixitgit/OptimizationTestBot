@@ -39,6 +39,18 @@ def cancel(update, context):
     return ConversationHandler.END
 
 
+def time(update, context):
+    query = update.callback_query
+    query.answer()
+    if context.bot_data['test_end']:
+        rem_time = context.bot_data['test_end'] - datetime.datetime.now()
+        logger.info(f'user asked for remaining time {rem_time}')
+        buttons = [[InlineKeyboardButton("Time", callback_data='time_button')]]
+        query.edit_message_text(text=f'Remaining time: {rem_time}', reply_markup=buttons)
+    else:
+        query.edit_message_text(text=f'No active test')
+
+
 def main():
     updater = Updater(config.TOKEN, use_context=True)
     # init
@@ -72,12 +84,12 @@ def main():
                                MessageHandler(Filters.regex('^(time)$'), student.time),
                                CommandHandler('time', student.time),
                                MessageHandler(Filters.regex('^(Finish)$'), student.finish),
-                               CallbackQueryHandler(student.finish, pattern='^finish_test$'),
-                               CallbackQueryHandler(student.time, pattern='^time_button$')],
+                               CallbackQueryHandler(student.finish, pattern='^finish_test$')]
         },
         fallbacks=[CommandHandler('cancel', cancel)]
     )
     dp.add_handler(test_solution_handler)
+    dp.add_handler(CallbackQueryHandler(student.time, pattern='^time_button$'))
 
     updater.start_polling()
 
